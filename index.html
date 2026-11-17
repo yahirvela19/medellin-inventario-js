@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Medellín &amp; Co. — Inventario</title>
+  <meta name="description" content="Inventario de joyería con JavaScript, manipulación del DOM y localStorage.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar__inner">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">M</span>
+        <div>
+          <p class="brand__name">Medellín &amp; Co.</p>
+          <p class="brand__sub">Inventario de joyería</p>
+        </div>
+      </div>
+      <button class="btn btn--ghost" id="btn-reset" type="button">Restablecer datos de ejemplo</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Indicadores calculados automáticamente -->
+    <section class="stats" aria-label="Resumen del inventario">
+      <article class="stat">
+        <p class="stat__label">Productos</p>
+        <p class="stat__value" id="stat-productos">0</p>
+      </article>
+      <article class="stat">
+        <p class="stat__label">Unidades en stock</p>
+        <p class="stat__value" id="stat-unidades">0</p>
+      </article>
+      <article class="stat">
+        <p class="stat__label">Valor del inventario</p>
+        <p class="stat__value" id="stat-valor">$0.00</p>
+      </article>
+      <article class="stat">
+        <p class="stat__label">Stock bajo (&lt; 5)</p>
+        <p class="stat__value stat__value--alert" id="stat-bajo">0</p>
+      </article>
+    </section>
+
+    <div class="layout">
+      <!-- Formulario para agregar / editar -->
+      <section class="card form-card" aria-labelledby="form-title">
+        <h2 class="card__title" id="form-title">Agregar producto</h2>
+        <form id="form-producto" novalidate>
+          <input type="hidden" id="campo-id">
+
+          <div class="field">
+            <label for="campo-nombre">Nombre</label>
+            <input id="campo-nombre" name="nombre" type="text" placeholder="Ej. Anillo de oro 18k" autocomplete="off">
+            <p class="field__error" id="error-nombre"></p>
+          </div>
+
+          <div class="field">
+            <label for="campo-sku">SKU</label>
+            <input id="campo-sku" name="sku" type="text" placeholder="Ej. ANI-001" autocomplete="off">
+            <p class="field__hint">Tres letras, guion y tres números.</p>
+            <p class="field__error" id="error-sku"></p>
+          </div>
+
+          <div class="field">
+            <label for="campo-categoria">Categoría</label>
+            <select id="campo-categoria" name="categoria">
+              <option value="">Selecciona una categoría</option>
+            </select>
+            <p class="field__error" id="error-categoria"></p>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="campo-precio">Precio (MXN)</label>
+              <input id="campo-precio" name="precio" type="number" min="0" step="0.01" placeholder="0.00">
+              <p class="field__error" id="error-precio"></p>
+            </div>
+            <div class="field">
+              <label for="campo-stock">Stock</label>
+              <input id="campo-stock" name="stock" type="number" min="0" step="1" placeholder="0">
+              <p class="field__error" id="error-stock"></p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="campo-ubicacion">Ubicación <span class="optional">(opcional)</span></label>
+            <input id="campo-ubicacion" name="ubicacion" type="text" placeholder="Ej. Vitrina A1" autocomplete="off">
+            <p class="field__error" id="error-ubicacion"></p>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn--primary" id="btn-guardar" type="submit">Agregar producto</button>
+            <button class="btn btn--ghost" id="btn-cancelar" type="button" hidden>Cancelar edición</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Listado con búsqueda, filtros y ordenamiento -->
+      <section class="card list-card" aria-labelledby="list-title">
+        <div class="list-header">
+          <h2 class="card__title" id="list-title">Productos</h2>
+          <p class="muted" id="contador">0 de 0 productos</p>
+        </div>
+
+        <div class="toolbar">
+          <input id="filtro-busqueda" class="toolbar__search" type="search" placeholder="Buscar por nombre o SKU" aria-label="Buscar">
+          <select id="filtro-categoria" aria-label="Filtrar por categoría">
+            <option value="">Todas las categorías</option>
+          </select>
+          <select id="filtro-orden" aria-label="Ordenar">
+            <option value="recientes">Más recientes</option>
+            <option value="nombre">Nombre (A–Z)</option>
+            <option value="precio-asc">Precio: menor a mayor</option>
+            <option value="precio-desc">Precio: mayor a menor</option>
+            <option value="stock-asc">Stock: menor a mayor</option>
+          </select>
+          <label class="check">
+            <input id="filtro-bajo" type="checkbox">
+            Solo stock bajo
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th class="num">Precio</th>
+                <th class="num">Stock</th>
+                <th>Ubicación</th>
+                <th class="actions-col"><span class="sr-only">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-cuerpo"></tbody>
+          </table>
+          <div class="empty" id="estado-vacio" hidden>
+            <p class="empty__title">No hay productos que mostrar</p>
+            <p class="muted">Agrega un producto o cambia los filtros de búsqueda.</p>
+          </div>
+        </div>
+
+        <div class="summary" id="resumen-categorias" aria-label="Valor por categoría"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Confirmación de eliminación -->
+  <dialog class="dialog" id="dialogo-eliminar">
+    <form method="dialog">
+      <h3 class="dialog__title">Eliminar producto</h3>
+      <p class="muted" id="dialogo-texto"></p>
+      <div class="dialog__actions">
+        <button class="btn btn--ghost" value="cancelar">Cancelar</button>
+        <button class="btn btn--danger" value="confirmar">Eliminar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Contenedor de notificaciones -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <footer class="footer">
+    <div class="container">
+      <p class="muted">Laboratorio de Programación Web · FIME UANL · Los datos se guardan en este navegador (localStorage).</p>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
